@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>K4GAN</title>
+	<style>
+		:root{ --bg: #000000; --fg: #ffffff; }
+		html, body { height: 100%; margin: 0; background-color: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+		.site-header { display: flex; align-items: center; justify-content: center; height: 18vh; min-height: 80px; text-align: center; position: relative; }
+		.site-header h1 { margin: 0; font-size: clamp(28px, 8vw, 72px); font-weight: 700; letter-spacing: 0.04em; transition: text-shadow 320ms cubic-bezier(.2,.9,.3,1), color 220ms ease, filter 320ms ease; }
+		/* Hover/focus glow for header (no transform/bulge) - larger, softer glow */
+		.site-header h1:hover,
+		.site-header h1:focus-visible {
+			text-shadow:
+				0 0 12px rgba(255,255,255,0.95),
+				0 0 36px rgba(0,150,255,0.20),
+				0 0 72px rgba(0,150,255,0.14),
+				0 0 120px rgba(0,150,255,0.08);
+			filter: drop-shadow(0 0 18px rgba(0,150,255,0.10));
+			color: var(--fg);
+			outline: none;
+		}
+		main { padding: 1.25rem; }
+
+		/* Centered tile */
+		.tile-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; }
+		.tile {
+			background-color: rgba(255,255,255,0.03);
+			border: 1px solid rgba(255,255,255,0.06);
+			padding: clamp(16px, 3vw, 28px);
+			border-radius: 14px;
+			max-width: 720px;
+			width: calc(100% - 2rem);
+			box-shadow: 0 8px 30px rgba(0,0,0,0.65);
+			backdrop-filter: blur(4px);
+			transition: transform 250ms cubic-bezier(.2,.9,.3,1), box-shadow 250ms ease;
+			will-change: transform;
+		}
+		/* Hover / focus bulge */
+		.tile:hover,
+		.tile:focus {
+			transform: scale(1.02);
+			box-shadow: 0 18px 40px rgba(0,0,0,0.7);
+		}
+		.tile:active {
+			transform: scale(1.01);
+		}
+		.tile h2 { margin: 0 0 0.5rem 0; font-size: clamp(18px, 3.5vw, 28px); font-weight:600; text-transform: capitalize; }
+		.tile p { margin: 0; color: #ddd; }
+		/* Contact layout inside tiles */
+		.tile .contact-list { margin-top: 0.5rem; }
+		.tile .contact-list p { margin: 0.35rem 0; color: #ddd; }
+
+		/* Taller variant for the Musikk tile (reduced so buttons fit snugly) */
+		.tile.tile--tall { min-height: clamp(160px, 30vh, 380px); display: flex; flex-direction: column; justify-content: space-between; }
+
+		/* Button that matches rounded design */
+		/* Stack buttons vertically and left-align inside the tile */
+		.tile .actions { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+		.btn {
+			display: inline-block;
+			padding: 0.56rem 0.9rem;
+			border-radius: 10px;
+			background: rgba(255,255,255,0.06);
+			color: var(--fg);
+			text-decoration: none;
+			border: 1px solid rgba(255,255,255,0.08);
+			box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+			transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+		}
+		.btn:hover,
+		.btn:focus {
+			transform: scale(1.05);
+			box-shadow: 0 14px 30px rgba(0,0,0,0.6);
+			background: rgba(255,255,255,0.08);
+		}
+		.btn:active { transform: translateY(-1px) scale(1.0); }
+
+		/* Top-right menu button and dropdown */
+		.nav-menu { position: absolute; right: 1rem; top: 1rem; }
+		.menu-btn {
+			background: transparent; border: 1px solid rgba(255,255,255,0.06); color: var(--fg); padding: 8px; border-radius: 10px; display: inline-flex; align-items: center; justify-content:center; cursor: pointer;
+			box-shadow: 0 6px 14px rgba(0,0,0,0.5);
+		}
+		.menu-btn svg { display:block; color: var(--fg); }
+		.menu-btn:focus { outline: 2px solid rgba(0,150,255,0.18); }
+		.dropdown { position: absolute; right: 0; top: calc(100% + 8px); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 6px; min-width: 180px; display: none; box-shadow: 0 12px 36px rgba(0,0,0,0.6); }
+		.dropdown.open { display: block; }
+		.dropdown a { display: block; padding: 8px 10px; color: var(--fg); text-decoration: none; border-radius: 6px; }
+		.dropdown a:hover, .dropdown a:focus { background: rgba(255,255,255,0.04); }
+
+
+		/* Respect reduced motion preference */
+		@media (prefers-reduced-motion: reduce) {
+			.tile { transition: none; transform: none; }
+		}
+	</style>
+</head>
+<body>
+	<header class="site-header" role="banner">
+		<h1>K4GAN</h1>
+		<!-- Top-right dropdown menu -->
+		<div class="nav-menu" aria-hidden="false">
+			<button id="menuBtn" class="menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="siteDropdown" title="Meny">
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+					<circle cx="5" cy="12" r="2" fill="currentColor" />
+					<circle cx="12" cy="12" r="2" fill="currentColor" />
+					<circle cx="19" cy="12" r="2" fill="currentColor" />
+				</svg>
+			</button>
+			<nav id="siteDropdown" class="dropdown" role="menu" aria-hidden="true">
+				<a role="menuitem" href="unreleased.html">Gullgruva</a>
+				<!-- add more menu items here if needed -->
+			</nav>
+		</div>
+	</header>
+	<main>
+		<div class="tile-container">
+			<section class="tile" aria-labelledby="about-subheader" tabindex="0">
+				<h2 id="about-subheader">Om K4GAN.</h2>
+				<p>K4GAN lager musikk som kombinerer den gamle rapfølelsen med moderne beats. Han skriver tekster som er ekte og personlige, og gjør mye bra bak kulissene som produsent og samarbeidspartner for andre artister.</p>
+			</section>
+			<section class="tile tile--tall" aria-labelledby="music-subheader" tabindex="0">
+				<h2 id="music-subheader">Strøm musikken.</h2>
+				<div class="actions">
+					<a class="btn" href="https://open.spotify.com/artist/1LAt9vIgSNfEyUI7pqchxc" target="_blank" rel="noopener noreferrer">Åpne på Spotify</a>
+					<a class="btn" href="https://music.apple.com/us/artist/b-keeper/1825514965" target="_blank" rel="noopener noreferrer">Åpne på Apple Music</a>
+					<a class="btn" href="https://music.amazon.com/artists/B0G2CT68MW/k4gan" target="_blank" rel="noopener noreferrer">Åpne på Amazon Music</a>
+					<a class="btn" href="https://music.youtube.com/channel/UCSswASuYFbXQzbPReHA7amA" target="_blank" rel="noopener noreferrer">Åpne på YouTube Music</a>
+				</div>
+			</section>
+			<section class="tile" aria-labelledby="contact-subheader" tabindex="0">
+				<h2 id="contact-subheader">Kontakt.</h2>
+				<div class="contact-list">
+					<p><strong>E-post:</strong> <a href="mailto:kayrakaganyigit@proton.me" style="color:inherit; text-decoration:underline;">kayrakaganyigit@proton.me</a></p>
+					<p><strong>Telefon:</strong> <a href="tel:+4745835312" style="color:inherit; text-decoration:underline;">+47 45 83 53 12</a></p>
+					<p><strong>Instagram:</strong> <a href="https://instagram.com/k4gan.wav" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline;">@k4gan.wav</a></p>
+				</div>
+			</section>
+		</div>
+	</main>
+
+	<script>
+		// Dropdown menu behavior: toggle, close on outside click and Esc
+		(function(){
+			const btn = document.getElementById('menuBtn');
+			const dropdown = document.getElementById('siteDropdown');
+			function openMenu(){
+				dropdown.classList.add('open');
+				btn.setAttribute('aria-expanded','true');
+				dropdown.setAttribute('aria-hidden','false');
+				// move focus to first menu item
+				const first = dropdown.querySelector('a'); if(first) first.focus();
+			}
+			function closeMenu(){
+				dropdown.classList.remove('open');
+				btn.setAttribute('aria-expanded','false');
+				dropdown.setAttribute('aria-hidden','true');
+				btn.focus();
+			}
+			btn.addEventListener('click', function(e){
+				e.stopPropagation();
+				if(dropdown.classList.contains('open')) closeMenu(); else openMenu();
+			});
+			document.addEventListener('click', function(e){
+				if(!dropdown.contains(e.target) && e.target !== btn) closeMenu();
+			});
+			document.addEventListener('keydown', function(e){
+				if(e.key === 'Escape') closeMenu();
+			});
+		})();
+	</script>
+</body>
+</html>
